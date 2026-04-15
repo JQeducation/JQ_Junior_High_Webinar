@@ -63,23 +63,22 @@
                 // 1. 抓取 WebinarKit 網址參數
                 const email = urlParams.get('email') || '';
                 const firstName = urlParams.get('first_name') || '';
+                const r = urlParams.get('r') || '';  // 報名唯一識別碼
                 const displayName = firstName || profile.displayName;
 
                 // 2. 顯示歡迎語
                 document.getElementById('user-name').textContent = displayName;
 
-                // ── 方案一 + 方案三：localStorage 防重複觸發 ──
-                const t = urlParams.get('t') || '';
-                const storageKey = `webhook_sent_${t || email || profile.userId}`;
+                // ── localStorage 防重複觸發（以 r 值為 key，每次報名獨立）──
+                const storageKey = `webhook_sent_${r || profile.userId}`;
                 const alreadySent = localStorage.getItem(storageKey);
 
                 if (alreadySent) {
-                    // 已經觸發過，直接跳到成功畫面，不打 Webhook
                     showSuccess(displayName);
                     return;
                 }
 
-                // 3. 第一次才觸發 Step 2 Webhook
+                // 3. 第一次才觸發 Step 2 Webhook（加入 r 參數）
                 fetch(MakeWebhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -87,11 +86,12 @@
                         line_id: profile.userId,
                         display_name: profile.displayName,
                         email: email,
-                        first_name: firstName
+                        first_name: firstName,
+                        r: r  // 傳送報名唯一識別碼給 Step 2
                     })
                 });
 
-                // 4. 記錄已觸發，防止同裝置重整重複打 Webhook
+                // 4. 記錄已觸發（以 r 值為 key，不同場次互不干擾）
                 localStorage.setItem(storageKey, '1');
 
                 // 5. 固定延遲 2 秒才跳轉（讓 Step 1 的 Webhook 有時間先跑完）
