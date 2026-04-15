@@ -48,6 +48,30 @@
             document.getElementById('success').classList.remove('hidden');
         }
 
+        function getParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+
+            let email = urlParams.get('email') || '';
+            let firstName = urlParams.get('first_name') || '';
+            let r = urlParams.get('r') || '';
+
+            // LIFF 登入後參數會放在 liff.state 裡，需要額外解析
+            if (!r) {
+                const liffState = urlParams.get('liff.state') || '';
+                if (liffState) {
+                    const decodedState = decodeURIComponent(liffState);
+                    const stateParams = new URLSearchParams(
+                        decodedState.startsWith('?') ? decodedState.slice(1) : decodedState
+                    );
+                    email = email || stateParams.get('email') || '';
+                    firstName = firstName || stateParams.get('first_name') || '';
+                    r = stateParams.get('r') || '';
+                }
+            }
+
+            return { email, firstName, r };
+        }
+
         async function main() {
             try {
                 await liff.init({ liffId: MyLiffId });
@@ -58,15 +82,10 @@
                 }
 
                 const profile = await liff.getProfile();
-                const urlParams = new URLSearchParams(window.location.search);
-                
-                // 1. 抓取 WebinarKit 網址參數
-                const email = urlParams.get('email') || '';
-                const firstName = urlParams.get('first_name') || '';
-                const r = urlParams.get('r') || '';  // 報名唯一識別碼
+                const { email, firstName, r } = getParams();
                 const displayName = firstName || profile.displayName;
 
-                // 2. 顯示歡迎語
+                // 顯示歡迎語
                 document.getElementById('user-name').textContent = displayName;
 
                 // ── localStorage 防重複觸發（以 r 值為 key，每次報名獨立）──
@@ -78,7 +97,7 @@
                     return;
                 }
 
-                // 3. 第一次才觸發 Step 2 Webhook（加入 r 參數）
+                // 第一次才觸發 Step 2 Webhook
                 fetch(MakeWebhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -87,14 +106,14 @@
                         display_name: profile.displayName,
                         email: email,
                         first_name: firstName,
-                        r: r  // 傳送報名唯一識別碼給 Step 2
+                        r: r
                     })
                 });
 
-                // 4. 記錄已觸發（以 r 值為 key，不同場次互不干擾）
+                // 記錄已觸發
                 localStorage.setItem(storageKey, '1');
 
-                // 5. 固定延遲 2 秒才跳轉（讓 Step 1 的 Webhook 有時間先跑完）
+                // 固定延遲 2 秒才跳轉（讓 Step 1 的 Webhook 有時間先跑完）
                 setTimeout(() => {
                     showSuccess(displayName);
                 }, 2000);
