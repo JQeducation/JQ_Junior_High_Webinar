@@ -69,7 +69,8 @@
                 document.getElementById('user-name').textContent = displayName;
 
                 // ── 方案一 + 方案三：localStorage 防重複觸發 ──
-                const storageKey = `webhook_sent_${email || profile.userId}`;
+                const t = urlParams.get('t') || '';
+                const storageKey = `webhook_sent_${t || email || profile.userId}`;
                 const alreadySent = localStorage.getItem(storageKey);
 
                 if (alreadySent) {
