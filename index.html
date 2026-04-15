@@ -77,7 +77,8 @@
                 await liff.init({ liffId: MyLiffId });
 
                 if (!liff.isLoggedIn()) {
-                    liff.login({ redirectUri: window.location.href });
+                    const cleanUrl = window.location.origin + window.location.pathname + window.location.search.replace(/[?&]code=[^&]*/,'').replace(/[?&]state=[^&]*/,'');
+liff.login({ redirectUri: cleanUrl });
                     return;
                 }
 
