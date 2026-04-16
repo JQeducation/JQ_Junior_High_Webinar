@@ -72,15 +72,41 @@
         const MakeWebhookUrl = 'https://hook.us2.make.com/my7wlg6ystnykr63gn7nimqgoizhetbo';
         const WebinarBaseUrl = 'https://webinar.archiestudio.co/webinar/thankyou/696f0867a8416e192c4c1c7e/';
 
-        // ── 從 URL 或 sessionStorage 取得報名參數 ──
+        // ── 從各種來源解析報名參數 ──
         function getParams() {
             const urlParams = new URLSearchParams(window.location.search);
+
+            // 方法1：直接從 URL 取（最理想）
             let t = urlParams.get('t') || '';
             let r = urlParams.get('r') || '';
             let firstName = urlParams.get('first_name') || '';
             let email = urlParams.get('email') || '';
             let phone = urlParams.get('phone_number') || '';
 
+            // 方法2：從 liff.state 解析（LIFF 登入後常見）
+            if (!r && !t) {
+                try {
+                    const liffState = urlParams.get('liff.state') || '';
+                    if (liffState) {
+                        // 可能是多重編碼，嘗試解碼直到取得乾淨的參數
+                        let decoded = liffState;
+                        for (let i = 0; i < 3; i++) {
+                            try { decoded = decodeURIComponent(decoded); } catch(e) { break; }
+                            if (decoded.includes('r=') || decoded.includes('t=')) break;
+                        }
+                        const stateParams = new URLSearchParams(
+                            decoded.startsWith('?') ? decoded.slice(1) : decoded
+                        );
+                        t = stateParams.get('t') || '';
+                        r = stateParams.get('r') || '';
+                        firstName = stateParams.get('first_name') || '';
+                        email = stateParams.get('email') || '';
+                        phone = stateParams.get('phone_number') || '';
+                    }
+                } catch(e) {}
+            }
+
+            // 方法3：從 sessionStorage 取（登入前存的備份）
             if (!r && !t) {
                 try {
                     const stored = sessionStorage.getItem('webinar_params');
@@ -94,6 +120,7 @@
                     }
                 } catch(e) {}
             }
+
             return { t, r, firstName, email, phone };
         }
 
@@ -108,14 +135,12 @@
             return WebinarBaseUrl + '?' + p.toString();
         }
 
-        // ── 顯示成功畫面 ──
         function showSuccess(name) {
             document.getElementById('user-name').textContent = name;
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('success').classList.remove('hidden');
         }
 
-        // ── 顯示失敗畫面 ──
         function showFailed(name, webinarUrl) {
             document.getElementById('user-name-failed').textContent = name;
             document.getElementById('webinar-btn-failed').href = webinarUrl;
@@ -123,18 +148,9 @@
             document.getElementById('failed').classList.remove('hidden');
         }
 
-        // ── 無限跳轉防護 ──
-        const redirectCount = parseInt(sessionStorage.getItem('redirect_count') || '0');
-        if (redirectCount > 3) {
-            sessionStorage.removeItem('redirect_count');
-            const params = getParams();
-            showFailed(params.firstName || '同學', buildWebinarUrl(params));
-            throw new Error('Redirect loop detected');
-        }
-
         async function main() {
             try {
-                // 登入前先把報名參數存進 sessionStorage
+                // 登入前先把 URL 上的報名參數存進 sessionStorage（備份）
                 const urlParams = new URLSearchParams(window.location.search);
                 if (urlParams.has('r') || urlParams.has('t')) {
                     sessionStorage.setItem('webinar_params', JSON.stringify({
@@ -144,23 +160,28 @@
                         email: urlParams.get('email') || '',
                         phone_number: urlParams.get('phone_number') || ''
                     }));
-                    sessionStorage.setItem('redirect_count', '0');
                 }
 
-                const params = getParams();
-                const webinarUrl = buildWebinarUrl(params);
-                const displayName = params.firstName || '同學';
-
-                if (!params.r && !params.t) {
-                    showFailed(displayName, webinarUrl);
+                // 無限跳轉防護
+                const redirectCount = parseInt(sessionStorage.getItem('redirect_count') || '0');
+                if (redirectCount > 3) {
+                    sessionStorage.removeItem('redirect_count');
+                    const params = getParams();
+                    showFailed(params.firstName || '同學', buildWebinarUrl(params));
                     return;
                 }
 
                 await liff.init({ liffId: MyLiffId });
 
+                // liff.init() 完成後，再取參數（此時 liff.state 已被處理）
+                const params = getParams();
+                const webinarUrl = buildWebinarUrl(params);
+                const displayName = params.firstName || '同學';
+
                 if (!liff.isLoggedIn()) {
                     sessionStorage.setItem('redirect_count', String(redirectCount + 1));
 
+                    // 組裝乾淨的 redirectUri
                     const cleanParams = new URLSearchParams();
                     if (params.t) cleanParams.set('t', params.t);
                     if (params.r) cleanParams.set('r', params.r);
@@ -173,7 +194,7 @@
                     return;
                 }
 
-                // ── LIFF 登入成功 ──
+                // LIFF 登入成功
                 sessionStorage.removeItem('redirect_count');
                 const profile = await liff.getProfile();
                 const name = params.firstName || profile.displayName;
