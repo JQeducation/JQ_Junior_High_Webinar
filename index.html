@@ -9,122 +9,201 @@
         body { font-family: "Microsoft JhengHei", sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background-color: #f5f5f5; padding: 20px; box-sizing: border-box; }
         .container { background: white; padding: 40px 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center; max-width: 400px; width: 100%; }
         h1 { color: #06c755; margin: 0 0 15px 0; font-size: 24px; }
-        p { color: #555; line-height: 1.6; margin: 0 0 25px 0; font-size: 15px; }
+        p { color: #555; line-height: 1.6; margin: 0 0 20px 0; font-size: 15px; }
+        .btn { display: inline-block; width: 100%; padding: 15px 0; border-radius: 10px; text-decoration: none; border: none; font-size: 16px; cursor: pointer; font-weight: bold; transition: background 0.3s; margin-bottom: 10px; box-sizing: border-box; text-align: center; }
+        .btn-primary { background-color: #06c755; color: white; box-shadow: 0 4px 6px rgba(6, 199, 85, 0.2); }
+        .btn-primary:hover { background-color: #05a546; }
+        .btn-secondary { background-color: #f0f0f0; color: #555; border: 1px solid #ddd; }
+        .btn-secondary:hover { background-color: #e0e0e0; }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #06c755; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .btn { display: inline-block; width: 100%; padding: 15px 0; border-radius: 10px; text-decoration: none; border: none; font-size: 16px; cursor: pointer; font-weight: bold; transition: background 0.3s; margin-bottom: 10px; box-sizing: border-box; }
-        .btn-primary { background-color: #06c755; color: white; box-shadow: 0 4px 6px rgba(6, 199, 85, 0.2); }
         .hidden { display: none; }
+        .note { font-size: 12px; color: #999; margin-top: 5px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
+    <!-- 載入中 -->
     <div id="loading" class="container">
         <div class="loader"></div>
-        <p style="font-size: 18px; font-weight: bold; margin-top: 15px;">正在為您生成專屬直播連結...</p>
+        <p style="font-size: 18px; font-weight: bold; margin-top: 15px;">正在為您確認報名資料...</p>
         <p style="color: #ff4b4b; font-weight: bold; margin-top: 10px; line-height: 1.5;">
-            💡 溫馨提醒：請勿關閉本網頁！<br>
-            授權添加官方 LINE，即可獲取「專屬直播連結」
+            💡 溫馨提醒：請勿關閉本網頁！
         </p>
     </div>
 
+    <!-- 成功畫面（LIFF 登入成功） -->
     <div id="success" class="container hidden">
         <h1>🎉 報名成功！</h1>
-        <p>尊敬的 <b id="user-name"></b>，報名資訊已確認！</p>
-        <a href="https://s.no8.io/link/channels/Ql5cQyBi7P" class="btn btn-primary">💬 前往官方 LINE 領取直播連結</a>
-        <p style="font-size: 13px; color: #ff4b4b; font-weight: bold; margin-top: 10px;">
-            💡 點擊上方按鈕，授權添加官方LINE<br>即可收到專屬直播連結！
+        <p>親愛的 <b id="user-name"></b>，<br>資料已確認，歡迎準時加入直播！</p>
+        <p style="font-size: 13px; color: #06c755; font-weight: bold; margin-top: 0; margin-bottom: 20px;">
+            ✅ 預約成功訊息將透過 LINE 發送給您！
         </p>
+        <!-- 按鈕 A：加入官方 LINE -->
+        <a href="https://lin.ee/ZMowQJg" class="btn btn-primary">
+            💬 加入官方 LINE 領取提醒
+        </a>
+        <p style="font-size: 13px; color: #999; margin-top: 10px;">
+            點擊上方按鈕加入後，即可收到專屬直播連結！
+        </p>
+    </div>
+
+    <!-- 失敗畫面（LIFF 登入失敗或跳轉問題） -->
+    <div id="failed" class="container hidden">
+        <h1>🎉 報名成功！</h1>
+        <p>親愛的 <b id="user-name-failed"></b>，<br>您的專屬直播連結已準備好！</p>
+        <p style="font-size: 13px; color: #ff4b4b; font-weight: bold; margin-top: 0; margin-bottom: 15px;">
+            請先點擊下方按鈕進入直播間，<br>直播中也可以掃碼加入我們的 LINE！
+        </p>
+        <!-- 按鈕 C：直播連結（綠色） -->
+        <a id="webinar-btn-failed" href="#" class="btn btn-primary">
+            👉 點擊進入講座直播間
+        </a>
+        <p class="note">（時間到了才能進入唷！）</p>
+        <!-- 按鈕 D：官方 LINE 純連結（白色） -->
+        <a href="https://lin.ee/ZMowQJg" class="btn btn-secondary">
+            💬 加入官方 LINE 掌握最新消息
+        </a>
     </div>
 
     <script>
-        // 設定區
-        const MyLiffId = '2009771736-hbNEloBb'; 
-        const MakeWebhookUrl = 'https://hook.us2.make.com/my7wlg6ystnykr63gn7nimqgoizhetbo'; 
+        // ── 設定區 ──
+        const MyLiffId = '2009771736-hbNEloBb';
+        const MakeWebhookUrl = 'https://hook.us2.make.com/my7wlg6ystnykr63gn7nimqgoizhetbo';
+        const WebinarBaseUrl = 'https://webinar.archiestudio.co/webinar/thankyou/696f0867a8416e192c4c1c7e/';
 
+        // ── 從 URL 或 sessionStorage 取得報名參數 ──
+        function getParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            let t = urlParams.get('t') || '';
+            let r = urlParams.get('r') || '';
+            let firstName = urlParams.get('first_name') || '';
+            let email = urlParams.get('email') || '';
+            let phone = urlParams.get('phone_number') || '';
+
+            if (!r && !t) {
+                try {
+                    const stored = sessionStorage.getItem('webinar_params');
+                    if (stored) {
+                        const p = JSON.parse(stored);
+                        t = p.t || '';
+                        r = p.r || '';
+                        firstName = p.first_name || '';
+                        email = p.email || '';
+                        phone = p.phone_number || '';
+                    }
+                } catch(e) {}
+            }
+            return { t, r, firstName, email, phone };
+        }
+
+        // ── 組裝直播連結 ──
+        function buildWebinarUrl(params) {
+            const p = new URLSearchParams();
+            if (params.t) p.set('t', params.t);
+            if (params.r) p.set('r', params.r);
+            if (params.firstName) p.set('first_name', params.firstName);
+            if (params.email) p.set('email', params.email);
+            if (params.phone) p.set('phone_number', params.phone);
+            return WebinarBaseUrl + '?' + p.toString();
+        }
+
+        // ── 顯示成功畫面 ──
         function showSuccess(name) {
             document.getElementById('user-name').textContent = name;
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('success').classList.remove('hidden');
         }
 
-        function getParams() {
-            const urlParams = new URLSearchParams(window.location.search);
+        // ── 顯示失敗畫面 ──
+        function showFailed(name, webinarUrl) {
+            document.getElementById('user-name-failed').textContent = name;
+            document.getElementById('webinar-btn-failed').href = webinarUrl;
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('failed').classList.remove('hidden');
+        }
 
-            let email = urlParams.get('email') || '';
-            let firstName = urlParams.get('first_name') || '';
-            let r = urlParams.get('r') || '';
-
-            // LIFF 登入後參數會放在 liff.state 裡，需要額外解析
-            if (!r) {
-                const liffState = urlParams.get('liff.state') || '';
-                if (liffState) {
-                    const decodedState = decodeURIComponent(liffState);
-                    const stateParams = new URLSearchParams(
-                        decodedState.startsWith('?') ? decodedState.slice(1) : decodedState
-                    );
-                    email = email || stateParams.get('email') || '';
-                    firstName = firstName || stateParams.get('first_name') || '';
-                    r = stateParams.get('r') || '';
-                }
-            }
-
-            return { email, firstName, r };
+        // ── 無限跳轉防護 ──
+        const redirectCount = parseInt(sessionStorage.getItem('redirect_count') || '0');
+        if (redirectCount > 3) {
+            sessionStorage.removeItem('redirect_count');
+            const params = getParams();
+            showFailed(params.firstName || '同學', buildWebinarUrl(params));
+            throw new Error('Redirect loop detected');
         }
 
         async function main() {
             try {
+                // 登入前先把報名參數存進 sessionStorage
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('r') || urlParams.has('t')) {
+                    sessionStorage.setItem('webinar_params', JSON.stringify({
+                        t: urlParams.get('t') || '',
+                        r: urlParams.get('r') || '',
+                        first_name: urlParams.get('first_name') || '',
+                        email: urlParams.get('email') || '',
+                        phone_number: urlParams.get('phone_number') || ''
+                    }));
+                    sessionStorage.setItem('redirect_count', '0');
+                }
+
+                const params = getParams();
+                const webinarUrl = buildWebinarUrl(params);
+                const displayName = params.firstName || '同學';
+
+                if (!params.r && !params.t) {
+                    showFailed(displayName, webinarUrl);
+                    return;
+                }
+
                 await liff.init({ liffId: MyLiffId });
 
                 if (!liff.isLoggedIn()) {
-                    const cleanUrl = window.location.origin + window.location.pathname + window.location.search.replace(/[?&]code=[^&]*/,'').replace(/[?&]state=[^&]*/,'');
-liff.login({ redirectUri: cleanUrl });
+                    sessionStorage.setItem('redirect_count', String(redirectCount + 1));
+
+                    const cleanParams = new URLSearchParams();
+                    if (params.t) cleanParams.set('t', params.t);
+                    if (params.r) cleanParams.set('r', params.r);
+                    if (params.firstName) cleanParams.set('first_name', params.firstName);
+                    if (params.email) cleanParams.set('email', params.email);
+                    if (params.phone) cleanParams.set('phone_number', params.phone);
+
+                    const cleanUrl = window.location.origin + window.location.pathname + '?' + cleanParams.toString();
+                    liff.login({ redirectUri: cleanUrl });
                     return;
                 }
 
+                // ── LIFF 登入成功 ──
+                sessionStorage.removeItem('redirect_count');
                 const profile = await liff.getProfile();
-                const { email, firstName, r } = getParams();
-                const displayName = firstName || profile.displayName;
+                const name = params.firstName || profile.displayName;
 
-                // 顯示歡迎語
-                document.getElementById('user-name').textContent = displayName;
-
-                // ── localStorage 防重複觸發（以 r 值為 key，每次報名獨立）──
-                const storageKey = `webhook_sent_${r || profile.userId}`;
-                const alreadySent = localStorage.getItem(storageKey);
-
-                if (alreadySent) {
-                    showSuccess(displayName);
-                    return;
+                // 觸發 Make Step 2 Webhook
+                const storageKey = `webhook_sent_${params.r || profile.userId}`;
+                if (!localStorage.getItem(storageKey)) {
+                    fetch(MakeWebhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            line_id: profile.userId,
+                            display_name: profile.displayName,
+                            email: params.email,
+                            first_name: params.firstName,
+                            r: params.r
+                        })
+                    });
+                    localStorage.setItem(storageKey, '1');
                 }
 
-                // 第一次才觸發 Step 2 Webhook
-                fetch(MakeWebhookUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        line_id: profile.userId,
-                        display_name: profile.displayName,
-                        email: email,
-                        first_name: firstName,
-                        r: r
-                    })
-                });
-
-                // 記錄已觸發
-                localStorage.setItem(storageKey, '1');
-
-                // 固定延遲 2 秒才跳轉（讓 Step 1 的 Webhook 有時間先跑完）
-                setTimeout(() => {
-                    showSuccess(displayName);
-                }, 2000);
+                showSuccess(name);
 
             } catch (err) {
                 console.error(err);
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('success').classList.remove('hidden');
+                const params = getParams();
+                showFailed(params.firstName || '同學', buildWebinarUrl(params));
             }
         }
+
         main();
     </script>
 </body>
