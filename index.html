@@ -19,6 +19,8 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .hidden { display: none; }
         .note { font-size: 12px; color: #999; margin-top: 5px; margin-bottom: 15px; }
+        .highlight-box { background-color: #fff8e1; border-left: 4px solid #ffc107; padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; text-align: left; }
+        .highlight-box p { margin: 0; font-size: 14px; color: #555; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -28,39 +30,60 @@
         <div class="loader"></div>
         <p style="font-size: 18px; font-weight: bold; margin-top: 15px;">正在為您確認報名資料...</p>
         <p style="color: #ff4b4b; font-weight: bold; margin-top: 10px; line-height: 1.5;">
-            💡 溫馨提醒：請勿關閉本網頁！
+            💡 溫馨提醒:請勿關閉本網頁!
         </p>
     </div>
 
-    <!-- 成功畫面（LIFF 登入成功） -->
-    <div id="success" class="container hidden">
-        <h1>🎉 報名成功！</h1>
-        <p>親愛的 <b id="user-name"></b>，<br>資料已確認，歡迎準時加入直播！</p>
+    <!-- 情境 1:已是好友(已加過 LINE OA) -->
+    <div id="is-friend" class="container hidden">
+        <h1>🎉 報名成功!</h1>
+        <p>親愛的 <b id="name-friend"></b>,<br>資料已確認,歡迎準時加入直播!</p>
         <p style="font-size: 13px; color: #06c755; font-weight: bold; margin-top: 0; margin-bottom: 20px;">
-            ✅ 預約成功訊息將透過 LINE 發送給您！
+            ✅ 預約成功訊息已透過 LINE 發送給您!
         </p>
-        <!-- 按鈕 A：加入官方 LINE -->
-        <a href="https://lin.ee/ZMowQJg" class="btn btn-primary">
-            💬 加入官方 LINE 領取提醒
+        <a href="https://line.me/R/oaMessage/@jqedu/" class="btn btn-primary">
+            💬 打開 LINE 查看訊息
         </a>
-        <p style="font-size: 13px; color: #999; margin-top: 10px;">
-            點擊上方按鈕加入後，即可收到專屬直播連結！
+        <p class="note">點擊上方按鈕可直接打開與我們的對話視窗</p>
+    </div>
+
+    <!-- 情境 2:非好友,需引導加好友 -->
+    <div id="not-friend" class="container hidden">
+        <h1>🎉 報名成功!</h1>
+        <p>親愛的 <b id="name-notfriend"></b>,<br>最後一步:加入 LINE 好友領取專屬提醒!</p>
+        <div class="highlight-box">
+            <p>📱 <b>點擊下方按鈕後:</b><br>
+            1. 加入 LINE 好友<br>
+            2. 稍候幾秒,預約成功訊息會傳送到您的 LINE<br>
+            3. 直播當天會再次提醒</p>
+        </div>
+        <button id="add-friend-btn" class="btn btn-primary">
+            💬 立即加入 LINE 好友
+        </button>
+        <p class="note">加好友後請留在 LINE 等待預約成功訊息</p>
+    </div>
+
+    <!-- 情境 3:加好友按鈕已點擊,等待 webhook 觸發 -->
+    <div id="webhook-pending" class="container hidden">
+        <div class="loader"></div>
+        <h1 style="font-size: 20px; margin-top: 15px;">訊息發送中...</h1>
+        <p>請切換到 LINE App 查看訊息<br>約 10 秒內會收到預約成功通知</p>
+        <p style="font-size: 13px; color: #06c755; font-weight: bold; margin-top: 10px;">
+            ✅ 您已成功報名講座
         </p>
     </div>
 
-    <!-- 失敗畫面（LIFF 登入失敗或跳轉問題） -->
+    <!-- 情境 4:LIFF 失敗 fallback(直接給直播連結) -->
     <div id="failed" class="container hidden">
-        <h1>🎉 報名成功！</h1>
-        <p>親愛的 <b id="user-name-failed"></b>，<br>您的專屬直播連結已準備好！</p>
+        <h1>🎉 報名成功!</h1>
+        <p>親愛的 <b id="name-failed"></b>,<br>您的專屬直播連結已準備好!</p>
         <p style="font-size: 13px; color: #ff4b4b; font-weight: bold; margin-top: 0; margin-bottom: 15px;">
-            請先點擊下方按鈕進入直播間，<br>直播中也可以掃碼加入我們的 LINE！
+            請先點擊下方按鈕進入直播間,<br>直播中也可以掃碼加入我們的 LINE!
         </p>
-        <!-- 按鈕 C：直播連結（綠色） -->
         <a id="webinar-btn-failed" href="#" class="btn btn-primary">
             👉 點擊進入講座直播間
         </a>
-        <p class="note">（時間到了才能進入唷！）</p>
-        <!-- 按鈕 D：官方 LINE 純連結（白色） -->
+        <p class="note">(時間到了才能進入唷!)</p>
         <a href="https://lin.ee/ZMowQJg" class="btn btn-secondary">
             💬 加入官方 LINE 掌握最新消息
         </a>
@@ -71,24 +94,25 @@
         const MyLiffId = '2009771736-hbNEloBb';
         const MakeWebhookUrl = 'https://hook.us2.make.com/my7wlg6ystnykr63gn7nimqgoizhetbo';
         const WebinarBaseUrl = 'https://webinar.archiestudio.co/webinar/thankyou/696f0867a8416e192c4c1c7e/';
+        const AddFriendUrl = 'https://lin.ee/ZMowQJg';
+        const WebhookDelayMs = 8000;  // 點擊加好友後延遲 8 秒觸發 webhook
 
         // ── 從各種來源解析報名參數 ──
         function getParams() {
             const urlParams = new URLSearchParams(window.location.search);
 
-            // 方法1：直接從 URL 取（最理想）
+            // 方法1:直接從 URL 取(最理想)
             let t = urlParams.get('t') || '';
             let r = urlParams.get('r') || '';
             let firstName = urlParams.get('first_name') || '';
             let email = urlParams.get('email') || '';
             let phone = urlParams.get('phone_number') || '';
 
-            // 方法2：從 liff.state 解析（LIFF 登入後常見）
+            // 方法2:從 liff.state 解析(LIFF 登入後常見)
             if (!r && !t) {
                 try {
                     const liffState = urlParams.get('liff.state') || '';
                     if (liffState) {
-                        // 可能是多重編碼，嘗試解碼直到取得乾淨的參數
                         let decoded = liffState;
                         for (let i = 0; i < 3; i++) {
                             try { decoded = decodeURIComponent(decoded); } catch(e) { break; }
@@ -106,7 +130,7 @@
                 } catch(e) {}
             }
 
-            // 方法3：從 sessionStorage 取（登入前存的備份）
+            // 方法3:從 sessionStorage 取(登入前存的備份)
             if (!r && !t) {
                 try {
                     const stored = sessionStorage.getItem('webinar_params');
@@ -124,7 +148,7 @@
             return { t, r, firstName, email, phone };
         }
 
-        // ── 組裝直播連結 ──
+        // ── 組裝直播連結(fallback 用) ──
         function buildWebinarUrl(params) {
             const p = new URLSearchParams();
             if (params.t) p.set('t', params.t);
@@ -135,22 +159,65 @@
             return WebinarBaseUrl + '?' + p.toString();
         }
 
-        function showSuccess(name) {
-            document.getElementById('user-name').textContent = name;
-            document.getElementById('loading').classList.add('hidden');
-            document.getElementById('success').classList.remove('hidden');
+        // ── 觸發 Make Webhook(核心功能) ──
+        async function triggerWebhook(payload, storageKey) {
+            // 防重複:如果已成功送過,不再送
+            if (storageKey && localStorage.getItem(storageKey)) {
+                console.log('Webhook already sent for this session, skipping.');
+                return true;
+            }
+
+            try {
+                const response = await fetch(MakeWebhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    keepalive: true  // ⭐ 關鍵:頁面被關閉後仍能完成請求
+                });
+
+                // 只有成功才記錄,避免失敗時被誤擋下次重試
+                if (response.ok && storageKey) {
+                    localStorage.setItem(storageKey, '1');
+                }
+                return response.ok;
+            } catch (err) {
+                console.error('Webhook failed:', err);
+                return false;
+            }
+        }
+
+        // ── 顯示畫面的 helper functions ──
+        function showScreen(screenId, name) {
+            // 隱藏所有畫面
+            ['loading', 'is-friend', 'not-friend', 'webhook-pending', 'failed'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            // 顯示指定畫面
+            document.getElementById(screenId).classList.remove('hidden');
+            // 填入姓名(如果有對應欄位)
+            if (name) {
+                const nameEl = document.getElementById(`name-${screenId.replace('is-', '').replace('not-', 'notfriend').replace('webhook-pending', 'pending')}`);
+                if (nameEl) nameEl.textContent = name;
+                // 針對不同畫面個別處理
+                const friendName = document.getElementById('name-friend');
+                const notFriendName = document.getElementById('name-notfriend');
+                const failedName = document.getElementById('name-failed');
+                if (friendName) friendName.textContent = name;
+                if (notFriendName) notFriendName.textContent = name;
+                if (failedName) failedName.textContent = name;
+            }
         }
 
         function showFailed(name, webinarUrl) {
-            document.getElementById('user-name-failed').textContent = name;
+            document.getElementById('name-failed').textContent = name;
             document.getElementById('webinar-btn-failed').href = webinarUrl;
-            document.getElementById('loading').classList.add('hidden');
-            document.getElementById('failed').classList.remove('hidden');
+            showScreen('failed');
         }
 
+        // ── 主流程 ──
         async function main() {
             try {
-                // 登入前先把 URL 上的報名參數存進 sessionStorage（備份）
+                // 登入前先把 URL 上的報名參數存進 sessionStorage(備份)
                 const urlParams = new URLSearchParams(window.location.search);
                 if (urlParams.has('r') || urlParams.has('t')) {
                     sessionStorage.setItem('webinar_params', JSON.stringify({
@@ -173,15 +240,14 @@
 
                 await liff.init({ liffId: MyLiffId });
 
-                // liff.init() 完成後，再取參數（此時 liff.state 已被處理）
+                // liff.init() 完成後,再取參數(此時 liff.state 已被處理)
                 const params = getParams();
-                const webinarUrl = buildWebinarUrl(params);
                 const displayName = params.firstName || '同學';
 
+                // 未登入 → 導去 LIFF 登入
                 if (!liff.isLoggedIn()) {
                     sessionStorage.setItem('redirect_count', String(redirectCount + 1));
 
-                    // 組裝乾淨的 redirectUri
                     const cleanParams = new URLSearchParams();
                     if (params.t) cleanParams.set('t', params.t);
                     if (params.r) cleanParams.set('r', params.r);
@@ -199,27 +265,67 @@
                 const profile = await liff.getProfile();
                 const name = params.firstName || profile.displayName;
 
-                // 觸發 Make Step 2 Webhook
+                // 組裝 webhook payload(給兩種情境用)
+                const payload = {
+                    line_id: profile.userId,
+                    display_name: profile.displayName,
+                    email: params.email,
+                    first_name: params.firstName,
+                    r: params.r
+                };
                 const storageKey = `webhook_sent_${params.r || profile.userId}`;
-                if (!localStorage.getItem(storageKey)) {
-                    fetch(MakeWebhookUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            line_id: profile.userId,
-                            display_name: profile.displayName,
-                            email: params.email,
-                            first_name: params.firstName,
-                            r: params.r
-                        })
-                    });
-                    localStorage.setItem(storageKey, '1');
+
+                // ⭐ 檢查好友狀態
+                let isFriend = false;
+                try {
+                    const friendship = await liff.getFriendship();
+                    isFriend = friendship.friendFlag;
+                } catch(e) {
+                    console.error('Friendship check failed:', e);
+                    // 檢查失敗時,保守起見當作不是好友
+                    isFriend = false;
                 }
 
-                showSuccess(name);
+                if (isFriend) {
+                    // ── 情境 X:已是好友 ──
+                    // 立即觸發 webhook,顯示成功畫面
+                    document.getElementById('name-friend').textContent = name;
+                    document.getElementById('is-friend').classList.remove('hidden');
+                    document.getElementById('loading').classList.add('hidden');
+
+                    // 背景觸發 webhook(不用 await,不阻塞畫面)
+                    triggerWebhook(payload, storageKey);
+
+                } else {
+                    // ── 情境 Y:還不是好友 ──
+                    // 顯示加好友引導畫面
+                    document.getElementById('name-notfriend').textContent = name;
+                    document.getElementById('not-friend').classList.remove('hidden');
+                    document.getElementById('loading').classList.add('hidden');
+
+                    // 綁定加好友按鈕
+                    document.getElementById('add-friend-btn').addEventListener('click', function(e) {
+                        e.preventDefault();
+
+                        // 延遲 8 秒觸發 webhook
+                        // 這段期間使用者已經跳到 LINE 加好友,LINE 會先發歡迎訊息
+                        setTimeout(() => {
+                            triggerWebhook(payload, storageKey);
+                        }, WebhookDelayMs);
+
+                        // 切換畫面,給使用者回饋
+                        document.getElementById('not-friend').classList.add('hidden');
+                        document.getElementById('webhook-pending').classList.remove('hidden');
+
+                        // 延遲一點點再跳轉到 LINE,確保 setTimeout 已註冊
+                        setTimeout(() => {
+                            window.location.href = AddFriendUrl;
+                        }, 100);
+                    });
+                }
 
             } catch (err) {
-                console.error(err);
+                console.error('Main flow error:', err);
                 const params = getParams();
                 showFailed(params.firstName || '同學', buildWebinarUrl(params));
             }
