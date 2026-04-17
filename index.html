@@ -32,7 +32,7 @@
         <div class="loader"></div>
         <p style="font-size: 18px; font-weight: bold; margin-top: 15px;">正在為您確認報名資料...</p>
         <p style="color: #ff4b4b; font-weight: bold; margin-top: 10px; line-height: 1.5;">
-            💡 溫馨提醒：請勿關閉本網頁！<br>待會請點擊下方「使用LINE應用程式登入」
+            💡 溫馨提醒：請勿關閉本網頁！
         </p>
     </div>
 
@@ -221,6 +221,10 @@
                     if (params.phone) cleanParams.set('phone_number', params.phone);
 
                     const cleanUrl = window.location.origin + window.location.pathname + '?' + cleanParams.toString();
+
+                    // ⏱ 停留 2 秒,讓使用者看清楚「待會請點擊使用 LINE 應用程式登入」的提示
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+
                     liff.login({ redirectUri: cleanUrl });
                     return;
                 }
