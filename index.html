@@ -23,6 +23,9 @@
         .highlight-box p { margin: 0; font-size: 14px; color: #555; line-height: 1.5; }
         .warning-box { background-color: #ffebee; border-left: 4px solid #ff4b4b; padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; text-align: left; }
         .warning-box p { margin: 0; font-size: 14px; color: #c62828; line-height: 1.6; font-weight: bold; }
+        .big-icon { font-size: 48px; margin-bottom: 10px; line-height: 1; }
+        .redirect-title { color: #06c755; font-size: 22px; font-weight: bold; margin: 15px 0 10px; }
+        .ended-title { color: #555; font-size: 22px; font-weight: bold; margin: 15px 0 10px; }
     </style>
 </head>
 <body>
@@ -90,13 +93,39 @@
         </a>
     </div>
 
+    <!-- 情境 5：講座即將開始 / 進行中,直接跳轉直播間 -->
+    <div id="redirecting" class="container hidden">
+        <div class="big-icon">🎬</div>
+        <p class="redirect-title">講座即將開始</p>
+        <p>正為您連入直播間......</p>
+        <div class="loader"></div>
+    </div>
+
+    <!-- 情境 6：講座已結束 -->
+    <div id="ended" class="container hidden">
+        <div class="big-icon">📅</div>
+        <p class="ended-title">講座已結束</p>
+        <p>此場次已經結束，<br>請您預約其他場次</p>
+        <a href="https://webinar.archiestudio.co/webinar/registration/696f0867a8416e192c4c1c7e" class="btn btn-primary">
+            🔄 查看其他場次
+        </a>
+    </div>
+
     <script>
         // ── 設定區 ──
         const MyLiffId = '2009771736-hbNEloBb';
         const MakeWebhookUrl = 'https://hook.us2.make.com/my7wlg6ystnykr63gn7nimqgoizhetbo';
         const WebinarBaseUrl = 'https://webinar.archiestudio.co/webinar/thankyou/696f0867a8416e192c4c1c7e/';
         const AddFriendUrl = 'https://lin.ee/ZMowQJg';
+        const RegistrationUrl = 'https://webinar.archiestudio.co/webinar/registration/696f0867a8416e192c4c1c7e';
         const WebhookDelayMs = 8000;
+
+        // ── 講座時間設定 ──
+        // 講座開始時間自動從 URL 的 t 參數取得(毫秒 Unix timestamp)
+        // 換講座時通常只需要調整這兩個值
+        const WebinarDurationMinutes = 64;  // 講座時長(分鐘)
+        const EarlyEnterMinutes = 3;         // 開始前幾分鐘內允許直接進入
+        const RedirectDelayMs = 2000;        // 跳轉直播間前的提示停留時間(毫秒)
 
         function getParams() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -154,6 +183,33 @@
             return WebinarBaseUrl + '?' + p.toString();
         }
 
+        // ── 判斷目前時間相對於講座時間的狀態 ──
+        // 回傳值:
+        //   'before'    — 距離講座開始還有超過 EarlyEnterMinutes 分鐘,走 LINE 流程
+        //   'during'    — 在講座進行區間內(含開始前 EarlyEnterMinutes 分鐘),直接跳直播間
+        //   'ended'     — 講座已結束,顯示結束畫面
+        //   'unknown'   — 沒有 t 參數或 t 無效,走 LINE 流程(保底)
+        function checkWebinarTime(tParam) {
+            if (!tParam) return 'unknown';
+
+            const startTime = parseInt(tParam, 10);
+            if (isNaN(startTime) || startTime <= 0) return 'unknown';
+
+            // 以台灣時間(UTC+8)為基準比較
+            // Date.now() 回傳的是 UTC 的 ms timestamp,和 startTime 同基準,
+            // 所以直接相減即可,不受使用者手機時區影響
+            const now = Date.now();
+            const earlyEnterMs = EarlyEnterMinutes * 60 * 1000;
+            const durationMs = WebinarDurationMinutes * 60 * 1000;
+
+            const enterWindowStart = startTime - earlyEnterMs;
+            const enterWindowEnd = startTime + durationMs;
+
+            if (now < enterWindowStart) return 'before';
+            if (now >= enterWindowStart && now <= enterWindowEnd) return 'during';
+            return 'ended';
+        }
+
         async function triggerWebhook(payload, storageKey) {
             if (storageKey && localStorage.getItem(storageKey)) {
                 console.log('Webhook already sent for this session, skipping.');
@@ -185,6 +241,21 @@
             document.getElementById('failed').classList.remove('hidden');
         }
 
+        // ── 顯示「講座即將開始,正為您連入直播間」並跳轉 ──
+        function showRedirectingAndGo(webinarUrl) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('redirecting').classList.remove('hidden');
+            setTimeout(() => {
+                window.location.href = webinarUrl;
+            }, RedirectDelayMs);
+        }
+
+        // ── 顯示「講座已結束」畫面 ──
+        function showEnded() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('ended').classList.remove('hidden');
+        }
+
         async function main() {
             try {
                 const urlParams = new URLSearchParams(window.location.search);
@@ -197,6 +268,25 @@
                         phone_number: urlParams.get('phone_number') || ''
                     }));
                 }
+
+                // ── 先判斷講座時段 ──
+                // 這個判斷要在 LIFF 初始化之前,避免使用者在講座進行中還被導去加 LINE
+                const earlyParams = getParams();
+                const timeStatus = checkWebinarTime(earlyParams.t);
+
+                if (timeStatus === 'during') {
+                    // 講座即將開始 / 進行中 → 直接跳直播間
+                    showRedirectingAndGo(buildWebinarUrl(earlyParams));
+                    return;
+                }
+
+                if (timeStatus === 'ended') {
+                    // 講座已結束 → 顯示結束畫面
+                    showEnded();
+                    return;
+                }
+
+                // timeStatus === 'before' 或 'unknown' → 繼續原本的 LINE 流程
 
                 const redirectCount = parseInt(sessionStorage.getItem('redirect_count') || '0');
                 if (redirectCount > 3) {
@@ -222,7 +312,7 @@
 
                     const cleanUrl = window.location.origin + window.location.pathname + '?' + cleanParams.toString();
 
-                    // ⏱ 停留 2 秒,讓使用者看清楚「待會請點擊使用 LINE 應用程式登入」的提示
+                    // ⏱ 停留 2.5 秒,讓使用者看清楚「待會請點擊使用 LINE 應用程式登入」的提示
                     await new Promise(resolve => setTimeout(resolve, 2500));
 
                     liff.login({ redirectUri: cleanUrl });
@@ -230,6 +320,20 @@
                 }
 
                 sessionStorage.removeItem('redirect_count');
+
+                // ── LIFF 登入成功後再判斷一次時段 ──
+                // 因為 LIFF 登入可能花了幾秒甚至幾分鐘(使用者先去加好友再回來),
+                // 有可能登入完講座已經快開始或開始了,這時也要直跳
+                const postLoginStatus = checkWebinarTime(params.t);
+                if (postLoginStatus === 'during') {
+                    showRedirectingAndGo(buildWebinarUrl(params));
+                    return;
+                }
+                if (postLoginStatus === 'ended') {
+                    showEnded();
+                    return;
+                }
+
                 const profile = await liff.getProfile();
                 const name = params.firstName || profile.displayName;
 
