@@ -26,6 +26,19 @@
         .big-icon { font-size: 48px; margin-bottom: 10px; line-height: 1; }
         .redirect-title { color: #06c755; font-size: 22px; font-weight: bold; margin: 15px 0 10px; }
         .ended-title { color: #555; font-size: 22px; font-weight: bold; margin: 15px 0 10px; }
+
+        /* 非好友畫面 — 新樣式 */
+        .main-heading { color: #06c755; font-size: 22px; font-weight: bold; margin: 0 0 8px; line-height: 1.4; }
+        .sub-heading { color: #555; font-size: 15px; font-weight: bold; margin: 0 0 6px; }
+        .greeting { color: #888; font-size: 14px; margin: 0 0 24px; }
+        .benefit-list { text-align: left; margin: 0 auto 24px; padding: 0; list-style: none; }
+        .benefit-item { display: flex; align-items: flex-start; padding: 12px 4px; border-bottom: 1px solid #f0f0f0; }
+        .benefit-item:last-child { border-bottom: none; }
+        .benefit-icon { font-size: 22px; margin-right: 14px; flex-shrink: 0; line-height: 1.3; }
+        .benefit-text { flex: 1; text-align: left; }
+        .benefit-title { font-size: 15px; font-weight: bold; color: #333; margin: 0 0 2px; line-height: 1.4; }
+        .benefit-desc { font-size: 13px; color: #888; margin: 0; line-height: 1.5; }
+        .trust-note { font-size: 12px; color: #999; margin: 10px 0 0; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -53,18 +66,38 @@
 
     <!-- 情境 2：非好友 -->
     <div id="not-friend" class="container hidden">
-        <h1>🎉 報名成功！</h1>
-        <p>親愛的 <b id="name-notfriend"></b>，<br>最後一步：加入 LINE 好友領取專屬直播連結！</p>
-        <div class="highlight-box">
-            <p>📱 <b>點擊下方按鈕後：</b><br>
-            1. 加入 LINE 好友<br>
-            2. 稍候幾秒，預約成功訊息會傳送到您的 LINE<br>
-            3. 直播當天會再次提醒</p>
-        </div>
+        <h1 class="main-heading">直播連結將傳送至你的 LINE</h1>
+        <p class="sub-heading">加入 LINE 才算完成報名</p>
+        <p class="greeting">親愛的 <b id="name-notfriend"></b>，加入後你會收到：</p>
+
+        <ul class="benefit-list">
+            <li class="benefit-item">
+                <div class="benefit-icon">📩</div>
+                <div class="benefit-text">
+                    <p class="benefit-title">專屬直播連結</p>
+                    <p class="benefit-desc">不用再回來找這個頁面</p>
+                </div>
+            </li>
+            <li class="benefit-item">
+                <div class="benefit-icon">⏰</div>
+                <div class="benefit-text">
+                    <p class="benefit-title">講座開始前提醒</p>
+                    <p class="benefit-desc">避免錯過開播時間</p>
+                </div>
+            </li>
+            <li class="benefit-item">
+                <div class="benefit-icon">🎁</div>
+                <div class="benefit-text">
+                    <p class="benefit-title">講座結束更快領取好禮</p>
+                    <p class="benefit-desc">第一時間收到課後資源</p>
+                </div>
+            </li>
+        </ul>
+
         <button id="add-friend-btn" class="btn btn-primary">
-            💬 立即加入 LINE 好友
+            加入 LINE 領取直播連結 →
         </button>
-        <p class="note">加好友後請留在 LINE 等待預約成功訊息</p>
+        <p class="trust-note">🔒 已有上千位同學透過 LINE 收到專屬連結，並準時上線</p>
     </div>
 
     <!-- 情境 3：等待 webhook -->
@@ -116,7 +149,7 @@
         const MyLiffId = '2009771736-hbNEloBb';
         const MakeWebhookUrl = 'https://hook.us2.make.com/my7wlg6ystnykr63gn7nimqgoizhetbo';
         const WebinarBaseUrl = 'https://webinar.archiestudio.co/webinar/thankyou/696f0867a8416e192c4c1c7e/';
-        const AddFriendUrl = 'https://lin.ee/ZMowQJg';
+        const AddFriendUrl = 'https://line.me/R/ti/p/%40704rcmqj';
         const RegistrationUrl = 'https://webinar.archiestudio.co/webinar/registration/696f0867a8416e192c4c1c7e';
         const WebhookDelayMs = 8000;
 
@@ -184,20 +217,12 @@
         }
 
         // ── 判斷目前時間相對於講座時間的狀態 ──
-        // 回傳值:
-        //   'before'    — 距離講座開始還有超過 EarlyEnterMinutes 分鐘,走 LINE 流程
-        //   'during'    — 在講座進行區間內(含開始前 EarlyEnterMinutes 分鐘),直接跳直播間
-        //   'ended'     — 講座已結束,顯示結束畫面
-        //   'unknown'   — 沒有 t 參數或 t 無效,走 LINE 流程(保底)
         function checkWebinarTime(tParam) {
             if (!tParam) return 'unknown';
 
             const startTime = parseInt(tParam, 10);
             if (isNaN(startTime) || startTime <= 0) return 'unknown';
 
-            // 以台灣時間(UTC+8)為基準比較
-            // Date.now() 回傳的是 UTC 的 ms timestamp,和 startTime 同基準,
-            // 所以直接相減即可,不受使用者手機時區影響
             const now = Date.now();
             const earlyEnterMs = EarlyEnterMinutes * 60 * 1000;
             const durationMs = WebinarDurationMinutes * 60 * 1000;
@@ -241,7 +266,6 @@
             document.getElementById('failed').classList.remove('hidden');
         }
 
-        // ── 顯示「講座即將開始,正為您連入直播間」並跳轉 ──
         function showRedirectingAndGo(webinarUrl) {
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('redirecting').classList.remove('hidden');
@@ -250,7 +274,6 @@
             }, RedirectDelayMs);
         }
 
-        // ── 顯示「講座已結束」畫面 ──
         function showEnded() {
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('ended').classList.remove('hidden');
@@ -269,24 +292,18 @@
                     }));
                 }
 
-                // ── 先判斷講座時段 ──
-                // 這個判斷要在 LIFF 初始化之前,避免使用者在講座進行中還被導去加 LINE
                 const earlyParams = getParams();
                 const timeStatus = checkWebinarTime(earlyParams.t);
 
                 if (timeStatus === 'during') {
-                    // 講座即將開始 / 進行中 → 直接跳直播間
                     showRedirectingAndGo(buildWebinarUrl(earlyParams));
                     return;
                 }
 
                 if (timeStatus === 'ended') {
-                    // 講座已結束 → 顯示結束畫面
                     showEnded();
                     return;
                 }
-
-                // timeStatus === 'before' 或 'unknown' → 繼續原本的 LINE 流程
 
                 const redirectCount = parseInt(sessionStorage.getItem('redirect_count') || '0');
                 if (redirectCount > 3) {
@@ -321,9 +338,6 @@
 
                 sessionStorage.removeItem('redirect_count');
 
-                // ── LIFF 登入成功後再判斷一次時段 ──
-                // 因為 LIFF 登入可能花了幾秒甚至幾分鐘(使用者先去加好友再回來),
-                // 有可能登入完講座已經快開始或開始了,這時也要直跳
                 const postLoginStatus = checkWebinarTime(params.t);
                 if (postLoginStatus === 'during') {
                     showRedirectingAndGo(buildWebinarUrl(params));
